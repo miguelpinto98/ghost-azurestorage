@@ -3,7 +3,7 @@
 var azure = require('azure-storage');
 var Promise = require('bluebird');
 var util = require('util');
-var url = require('url'),
+var url = require('url');
 var BaseStorage = require('../../../core/server/storage/base');
 
 function ghostStorageAzure(config) {
