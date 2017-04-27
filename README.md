@@ -2,6 +2,7 @@
 # Ghost Azure
 
 This module allows you to store media file at Azure instead of storing at local machine.
+Supports ghost versions 0.10.+
 
 ## Installation
 

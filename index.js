@@ -1,47 +1,66 @@
 ﻿'use strict';
-var azure = require('azure-storage'),
-    fs = require('fs'),
-    path = require('path'),
-    when = require('when'),
-    nodefn = require('when/node'),
-    url = require('url'),
-    options = {};
 
+var azure = require('azure-storage');
+var Promise = require('bluebird');
+var util = require('util');
+var url = require('url'),
+var BaseStorage = require('../../../core/server/storage/base');
 
-function azurestore(config) {
-    options = config || {};
-    options.connectionString = options.connectionString || process.env.AZURE_STORAGE_CONNECTION_STRING;
-    options.container = options.container || 'ghost';
-    options.useHttps = options.useHttps == 'true';
-};
+function ghostStorageAzure(config) {
+    BaseStorage.call(this);
+    this.options = config || {};
+}
 
-azurestore.prototype.save = function (image) {
-    var fileService = azure.createBlobService(options.connectionString);
+util.inherits(ghostStorageAzure, BaseStorage);
+
+ghostStorageAzure.prototype.save = function(image) {
+    var _this = this;
+    var blobService = azure.createBlobService(_this.options.connectionString);
     var uniqueName = new Date().getMonth() + "/" + new Date().getFullYear() + "/" + image.name;
-    return nodefn.call(fileService.createContainerIfNotExists.bind(fileService), options.container, { publicAccessLevel: 'blob' })
-    .then(nodefn.call(fileService.createBlockBlobFromLocalFile.bind(fileService), options.container, uniqueName, image.path))
-    .delay(500) //todo: this was placed here per issue #4 (aka sometimes things 404 right after upload) figure out a better way than just adding a delay
-    .then(function () {
-        var urlValue = fileService.getUrl(options.container, uniqueName);
 
-        if(!options.cdnUrl){
-            return urlValue;    
-        }
+    return new Promise(function(resolve, reject) {
+        blobService.createContainerIfNotExists(_this.options.container, { publicAccessLevel: 'blob' }, function(error) {
+            if (!error) {
+                blobService.createBlockBlobFromLocalFile(_this.options.container, uniqueName, image.path, function(error) {
+                    if (!error) {
+                        var urlValue = blobService.getUrl(_this.options.container, uniqueName);
 
-        var parsedUrl = url.parse(urlValue, true, true);
-        var protocol = (options.useHttps ? "https" : "http") + "://";
+                        if(!_this.options.cdnUrl){
+                            resolve(urlValue);
+                        } else {
+                            var parsedUrl = url.parse(urlValue, true, true);
+                            var protocol = (_this.options.useHttps ? "https" : "http") + "://";
+                            resolve(protocol + _this.options.cdnUrl  + parsedUrl.path);
+                        }
+                    } else {
+                        reject('ERROR: creating file on storage!' + error);
+                    }
+                });
+            } else {
+                reject('ERROR: creating container!' + error);
+            }
+        });
+    });
+}
 
-        return protocol + options.cdnUrl  + parsedUrl.path;
+ghostStorageAzure.prototype.serve = function() {
+    return function(req, res, next) {
+        next();
+    };
+}
+
+// TODO: check image
+ghostStorageAzure.prototype.exists = function(image) {
+    return new Promise(function(resolve, reject) {
+        resolve(false);
+    });
+}
+
+// TODO: delete image from storage
+ghostStorageAzure.prototype.delete = function(image, targetDir) {
+    return new Promise(function(resolve) {
+        resolve(false);
     });
 };
 
-azurestore.prototype.serve = function () {
-    return function (req, res, next) {
-        next();
-    };
-};
-
-
-
-
-module.exports = azurestore;
+module.exports = ghostStorageAzure;
