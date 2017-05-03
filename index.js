@@ -16,7 +16,7 @@ util.inherits(ghostStorageAzure, BaseStorage);
 ghostStorageAzure.prototype.save = function(image) {
     var _this = this;
     var blobService = azure.createBlobService(_this.options.connectionString);
-    var uniqueName = new Date().getMonth() + "/" + new Date().getFullYear() + "/" + image.name;
+    var uniqueName = new Date().getFullYear() + "/" + new Date().getMonth() + "/" + image.name;
 
     return new Promise(function(resolve, reject) {
         blobService.createContainerIfNotExists(_this.options.container, { publicAccessLevel: 'blob' }, function(error) {
